@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: Calibri, "Segoe UI", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.35;
+      color: #1a1a1a;
+      background: #fff;
+    }
+
+    .page {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 10mm 12mm 8mm 12mm;
+    }
+
+    .masthead {
+      margin-bottom: 6mm;
+      padding-bottom: 3.5mm;
+      border-bottom: 1pt solid #1a1a1a;
+    }
+
+    .name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 21pt;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+      margin-bottom: 2mm;
+    }
+
+    .contact-line {
+      font-size: 9.5pt;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    .contact-line a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .block {
+      margin-bottom: 5mm;
+    }
+
+    .block:last-child {
+      margin-bottom: 0;
+    }
+
+    .label {
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #1a1a1a;
+      margin-bottom: 2.5mm;
+      padding-bottom: 1mm;
+      border-bottom: 0.5pt solid #1a1a1a;
+    }
+
+    .summary-text {
+      font-size: 10.5pt;
+      line-height: 1.4;
+      color: #222;
+    }
+
+    .skill-group {
+      margin-bottom: 2mm;
+    }
+
+    .skill-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .skill-cat {
+      font-size: 9.5pt;
+      font-weight: 700;
+      margin-bottom: 0.5mm;
+    }
+
+    .skill-items {
+      font-size: 10pt;
+      color: #333;
+      line-height: 1.35;
+    }
+
+    .role {
+      margin-bottom: 4mm;
+    }
+
+    .role:last-child {
+      margin-bottom: 0;
+    }
+
+    .role-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4mm;
+      margin-bottom: 0.5mm;
+      page-break-after: avoid;
+      break-after: avoid-page;
+    }
+
+    .role-company {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .role-dates {
+      font-size: 9.5pt;
+      color: #555;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .role-title {
+      font-size: 10pt;
+      font-style: italic;
+      color: #333;
+      margin-bottom: 1mm;
+    }
+
+    .bullet {
+      position: relative;
+      padding-left: 3.5mm;
+      margin-bottom: 0.5mm;
+      font-size: 10.5pt;
+      line-height: 1.32;
+      color: #222;
+    }
+
+    .bullet::before {
+      content: "–";
+      position: absolute;
+      left: 0;
+      color: #666;
+    }
+
+    .edu-entry {
+      margin-bottom: 2mm;
+    }
+
+    .edu-entry:last-child {
+      margin-bottom: 0;
+    }
+
+    .edu-school {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .edu-detail {
+      font-size: 10pt;
+      color: #444;
+      line-height: 1.35;
+    }
+
+    .cert-item {
+      font-size: 10pt;
+      color: #333;
+      margin-bottom: 1mm;
+      padding-left: 3.5mm;
+      position: relative;
+    }
+
+    .cert-item::before {
+      content: "–";
+      position: absolute;
+      left: 0;
+      color: #666;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { max-width: 100%; padding: 8mm 10mm; }
+      .label { page-break-after: avoid; break-after: avoid-page; }
+      .role { page-break-inside: auto; }
+      .edu-entry { page-break-inside: avoid; break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="masthead">
+      <div class="name">{{name}}</div>
+      <div class="contact-line">
+        {{#email}}{{email}}{{/email}}{{#phone}} · {{phone}}{{/phone}}{{#location}} · {{location}}{{/location}}{{#linkedin}} · <a href="{{linkedin}}">{{linkedin}}</a>{{/linkedin}}
+      </div>
+    </header>
+
+    {{#hasSummary}}
+    <section class="block">
+      <div class="label">Profile</div>
+      <div class="summary-text">{{summary}}</div>
+    </section>
+    {{/hasSummary}}
+
+    {{#hasSkills}}
+    <section class="block">
+      <div class="label">Skills</div>
+      {{#hardSkills}}
+      <div class="skill-group">
+        <div class="skill-cat">{{key}}</div>
+        <div class="skill-items">{{valueString}}</div>
+      </div>
+      {{/hardSkills}}
+      {{#hasSoftSkills}}
+      <div class="skill-group">
+        <div class="skill-cat">Professional</div>
+        <div class="skill-items">{{softSkillsString}}</div>
+      </div>
+      {{/hasSoftSkills}}
+    </section>
+    {{/hasSkills}}
+
+    {{#hasExperience}}
+    <section class="block">
+      <div class="label">Experience</div>
+      {{#experience}}
+      <div class="role">
+        <div class="role-head">
+          <div class="role-company">{{company}}</div>
+          {{#dateRange}}<div class="role-dates">{{dateRange}}</div>{{/dateRange}}
+        </div>
+        <div class="role-title">{{title}}</div>
+        {{#hasAchievements}}
+        <div>
+          {{#achievements}}
+          <div class="bullet">{{.}}</div>
+          {{/achievements}}
+        </div>
+        {{/hasAchievements}}
+      </div>
+      {{/experience}}
+    </section>
+    {{/hasExperience}}
+
+    {{#hasEducation}}
+    <section class="block">
+      <div class="label">Education</div>
+      {{#education}}
+      <div class="edu-entry">
+        <div class="edu-school">{{school}}</div>
+        <div class="edu-detail">{{degree}}{{#graduationDate}} · {{graduationDate}}{{/graduationDate}}</div>
+      </div>
+      {{/education}}
+    </section>
+    {{/hasEducation}}
+
+    {{#hasCertifications}}
+    <section class="block">
+      <div class="label">Certifications</div>
+      {{#certifications}}
+      <div class="cert-item">{{.}}</div>
+      {{/certifications}}
+    </section>
+    {{/hasCertifications}}
+
+    {{#hasProjects}}
+    <section class="block">
+      <div class="label">Projects</div>
+      {{#projects}}
+      <div class="role">
+        <div class="role-head">
+          <div class="role-company">{{name}}</div>
+        </div>
+        {{#description}}<div class="summary-text" style="margin-bottom:1mm;">{{description}}</div>{{/description}}
+        {{#technologiesString}}<div class="edu-detail">{{technologiesString}}</div>{{/technologiesString}}
+      </div>
+      {{/projects}}
+    </section>
+    {{/hasProjects}}
+  </div>
+</body>
+</html>

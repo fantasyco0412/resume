@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.2;
+      color: #000000;
+      padding: 0;
+      background: #ffffff;
+    }
+    .container {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 6mm 12mm;
+      background: #ffffff;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 0;
+      margin-bottom: 0.8cm;
+    }
+    .name {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18pt;
+      font-weight: 700;
+      margin-bottom: 0.5cm;
+      color: #000000;
+      line-height: 1.2;
+    }
+    .contact-info {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      color: #000000;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px 12px;
+      font-weight: 400;
+    }
+    .contact-info a {
+      color: #000000;
+      text-decoration: none;
+    }
+    .contact-info a:hover { text-decoration: underline; }
+    .section {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+    .section-title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 15pt;
+      font-weight: 700;
+      margin-top: 0.4cm;
+      margin-bottom: 0;
+      padding-bottom: 0.5cm;
+      color: #000000;
+      border-bottom: 3px solid #b5b5b5;
+    }
+    /* .section-title:first-of-type { margin-top: 0; } */
+    .section-summary .section-title { margin-top: 0; margin-bottom: 0.2cm; }
+    .section-skills .section-title { margin-top: 0.5cm; margin-bottom: 0.2cm; }
+    .section-experience .section-title { margin-top: 0.5cm; margin-bottom: 0.2cm; }
+    .section-education .section-title { margin-top: 0.5cm; margin-bottom: 0.2cm; }
+    .summary {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.2;
+      color: #000000;
+      text-align: left;
+      font-weight: 400;
+      margin-top: 0;
+    }
+    .section-summary { margin-bottom: 0.5cm; }
+    .section-skills { margin-bottom: 0.5cm; }
+    .section-experience { margin-bottom: 0.5cm; }
+    .section-education { margin-bottom: 0.5cm; }
+    .experience-item {
+      margin-bottom: 0.5cm;
+      padding-bottom: 0;
+      position: relative;
+    }
+    .experience-item:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .experience-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1px;
+      page-break-after: avoid;
+      break-after: avoid-page;
+    }
+    .experience-header-left {
+      flex: 1;
+    }
+    .company {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 0;
+    }
+    .job-title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 1px;
+    }
+    .date-range {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: #000000;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .achievements {
+      margin-top: 1px;
+      padding-left: 0;
+    }
+    .achievement-item {
+      margin-bottom: 0;
+      padding-left: 14px;
+      position: relative;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      color: #000000;
+      line-height: 1.2;
+      font-weight: 400;
+    }
+    .achievement-item::before {
+      content: "\2022";
+      position: absolute;
+      left: 0;
+      color: #000000;
+      font-size: 11pt;
+    }
+    .skill-category {
+      margin-bottom: 0.2cm;
+    }
+    .skill-category-title {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 0.1cm;
+    }
+    .skill-list {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      color: #000000;
+      line-height: 1.2;
+      font-weight: 400;
+    }
+    .education-item {
+      margin-bottom: 0.2cm;
+    }
+    .education-school {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 0.1cm;
+    }
+    .education-degree-date {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      font-weight: 400;
+      color: #000000;
+      margin-bottom: 0;
+    }
+    .certification-item {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      color: #000000;
+      margin-bottom: 2px;
+      padding-left: 14px;
+      position: relative;
+      font-weight: 400;
+    }
+    .certification-item::before {
+      content: "\2022";
+      position: absolute;
+      left: 0;
+      color: #000000;
+      font-size: 11pt;
+    }
+    .project-item {
+      margin-bottom: 0.2cm;
+    }
+    .project-name {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 1px;
+    }
+    .project-description {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      color: #000000;
+      margin-bottom: 2px;
+      line-height: 1.2;
+    }
+    .project-tech {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      color: #000000;
+      font-weight: 400;
+      font-style: italic;
+    }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .container { max-width: 100%; padding: 10px; box-shadow: none; }
+      .section-title {
+        page-break-after: avoid;
+        break-after: avoid-page;
+      }
+      .section-title + * {
+        page-break-before: avoid;
+        break-before: avoid-page;
+      }
+      /* Allow experience items to break across pages so first company starts on page 1 */
+      .experience-item { page-break-inside: auto; }
+      .section-experience .section-title + .experience-item,
+      .section-education .section-title + .education-item,
+      .section-projects .section-title + .project-item {
+        page-break-before: avoid;
+        break-before: avoid-page;
+      }
+      .education-item, .project-item {
+        page-break-inside: avoid;
+        break-inside: avoid-page;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Name centered at top -->
+    <div class="header">
+      <div class="name">{{name}}</div>
+      <!-- Under name: address, phone, email -->
+      <div class="contact-info">
+        {{#location}}{{location}} | {{/location}}{{#phone}}{{phone}} | {{/phone}}{{email}}{{#linkedin}} | <a href="{{linkedin}}">LinkedIn</a>{{/linkedin}}
+      </div>
+    </div>
+
+    {{#hasSummary}}
+    <div class="section section-summary">
+      <div class="section-title">Summary</div>
+      <div class="summary">{{summary}}</div>
+    </div>
+    {{/hasSummary}}
+
+    {{#hasSkills}}
+    <div class="section section-skills">
+      <div class="section-title">Skills</div>
+      {{#hardSkills}}
+      <div class="skill-category">
+        <div class="skill-category-title">{{key}}</div>
+        <div class="skill-list">{{valueString}}</div>
+      </div>
+      {{/hardSkills}}
+    </div>
+    {{/hasSkills}}
+
+    {{#hasExperience}}
+    <div class="section section-experience">
+      <div class="section-title">Experience</div>
+      {{#experience}}
+      <div class="experience-item">
+        <div class="experience-header">
+          <div class="experience-header-left">
+            <div class="company">{{company}}</div>
+            <div class="job-title">{{title}}</div>
+          </div>
+          {{#dateRange}}<div class="date-range">{{dateRange}}</div>{{/dateRange}}
+        </div>
+        {{#hasAchievements}}
+        <div class="achievements">
+          {{#achievements}}
+          <div class="achievement-item">{{.}}</div>
+          {{/achievements}}
+        </div>
+        {{/hasAchievements}}
+      </div>
+      {{/experience}}
+    </div>
+    {{/hasExperience}}
+
+    {{#hasEducation}}
+    <div class="section section-education">
+      <div class="section-title">Education</div>
+      {{#education}}
+      <div class="education-item">
+        <div class="education-school">{{school}}</div>
+        <div class="education-degree-date">{{degree}} | {{graduationDate}}</div>
+      </div>
+      {{/education}}
+    </div>
+    {{/hasEducation}}
+
+  </div>
+</body>
+</html>
