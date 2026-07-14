@@ -8,6 +8,7 @@ import { uploadCoverLetterJson } from "@/lib/supabase/storage";
 import { createResumeWithArtifacts } from "@/lib/supabase/services/resumes";
 import { DEFAULT_JOBSITE, type JobsiteId } from "@/lib/jobsites";
 import { formatPdfSaveMessage, saveCoverLetterPdfToDownloadsFolder, saveGeneratedResumeToDownloads } from "@/lib/pdf-download";
+import { writeClipboardText } from "@/lib/clipboard";
 import { formatSupabaseConnectionError, isSupabaseNetworkError } from "@/lib/supabase/network";
 import { formatProviderLabel, getModelProvider } from "@/lib/openrouter-shared";
 import { apiUrl } from "@/lib/api-config";
@@ -241,7 +242,7 @@ export default function ResultDisplay({
   const handleCopyCoverLetter = React.useCallback(async () => {
     if (!coverLetter) return;
     try {
-      await navigator.clipboard.writeText(coverLetter);
+      await writeClipboardText(coverLetter);
       setCoverLetterCopied(true);
       setTimeout(() => setCoverLetterCopied(false), 2000);
     } catch {
@@ -253,7 +254,7 @@ export default function ResultDisplay({
     async (index: number, text: string) => {
       if (!text) return;
       try {
-        await navigator.clipboard.writeText(text);
+        await writeClipboardText(text);
         setCopiedAnswerIndex(index);
         setTimeout(() => setCopiedAnswerIndex(null), 2000);
       } catch {

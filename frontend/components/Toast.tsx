@@ -16,6 +16,9 @@ interface ToastMessage {
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const timeoutsRef = useRef<Map<number, number>>(new Map());
+  const lastToastRef = useRef<{ type: ToastType; message: string; at: number } | null>(
+    null
+  );
 
   const dismissToast = useCallback((id: number) => {
     const timeout = timeoutsRef.current.get(id);
@@ -28,7 +31,20 @@ export function useToast() {
 
   const showToast = useCallback(
     (type: ToastType, message: string) => {
-      const id = Date.now() + Math.floor(Math.random() * 1000);
+      const now = Date.now();
+      const last = lastToastRef.current;
+      // Ignore identical toast shown again within 1.5s (double-click / race).
+      if (
+        last &&
+        last.type === type &&
+        last.message === message &&
+        now - last.at < 1500
+      ) {
+        return;
+      }
+      lastToastRef.current = { type, message, at: now };
+
+      const id = now + Math.floor(Math.random() * 1000);
       setToasts((prev) => [...prev, { id, type, message }]);
 
       const timeout = window.setTimeout(() => {

@@ -260,7 +260,13 @@ export function formatAIProviderError(
     err instanceof Error &&
     (/403/.test(err.message) || /forbidden|request not allowed/i.test(err.message))
   ) {
-    return `${label} rejected the request (403 forbidden). Check your API key and model access.`;
+    const detail = err.message.replace(/^Error:\s*/i, "").trim();
+    return (
+      `${label} rejected the request (403 forbidden). ` +
+      "This model may be blocked for your OpenRouter key (provider allowlist, privacy/ZDR settings, or account access). " +
+      "Try anthropic/claude-sonnet-4 or claude-opus-4.8 (non-fast), or turn Use OpenRouter off and use your direct Anthropic key. " +
+      `Details: ${detail}`
+    );
   }
 
   if (

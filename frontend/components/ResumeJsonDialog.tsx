@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AnalysisResult } from "@/lib/types/resume";
+import { writeClipboardText } from "@/lib/clipboard";
 
 interface ResumeJsonDialogProps {
   open: boolean;
@@ -85,7 +86,7 @@ export default function ResumeJsonDialog({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(jsonDraft);
+      await writeClipboardText(jsonDraft);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

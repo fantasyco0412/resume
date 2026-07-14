@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  formatSupabaseConnectionError,
+  isSupabaseNetworkError,
+} from "@/lib/supabase/network";
 import ThemeToggle from "@/components/ThemeToggle";
 import { ToastContainer, useToast } from "@/components/Toast";
 
@@ -30,8 +34,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       if (data.user) {
         onAuthSuccess();
       }
-    } catch (err: any) {
-      showToast("error", err.message || "An error occurred");
+    } catch (err: unknown) {
+      const message = isSupabaseNetworkError(err)
+        ? formatSupabaseConnectionError(err)
+        : err instanceof Error
+          ? err.message
+          : "An error occurred";
+      showToast("error", message);
     } finally {
       setLoading(false);
     }

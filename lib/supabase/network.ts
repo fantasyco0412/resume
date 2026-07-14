@@ -13,6 +13,7 @@ export function isSupabaseNetworkError(error: unknown): boolean {
 
   return (
     e.name === "AbortError" ||
+    e.name === "TimeoutError" ||
     e.name === "FetchError" ||
     e.code === "ETIMEDOUT" ||
     e.code === "ECONNRESET" ||
@@ -20,13 +21,27 @@ export function isSupabaseNetworkError(error: unknown): boolean {
     e.cause?.code === "ETIMEDOUT" ||
     e.cause?.code === "ENOTFOUND" ||
     e.cause?.code === "UND_ERR_CONNECT_TIMEOUT" ||
-    /failed to fetch|network|timed out|timeout|aborted|err_timed_out|connect timeout/i.test(
+    /failed to fetch|network|timed out|timeout|aborted|err_timed_out|connect timeout|signal is aborted/i.test(
       String(e.message || e.cause?.message || "")
     )
   );
 }
 
 export function formatSupabaseConnectionError(error?: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  if (/timed out|timeout|signal is aborted|aborted/i.test(raw)) {
+    return (
+      "Connection to Supabase timed out. Check internet/VPN/firewall, " +
+      "or increase NEXT_PUBLIC_SUPABASE_FETCH_TIMEOUT_MS (e.g. 45000), then retry."
+    );
+  }
+
   return (
     "Cannot reach Supabase. Check your internet connection, VPN/firewall, " +
     "and that your Supabase project is not paused in the dashboard. " +
@@ -34,8 +49,9 @@ export function formatSupabaseConnectionError(error?: unknown): string {
   );
 }
 
+/** Client + server. Default 30s for slow laptops / VPN. Override via env. */
 export const SUPABASE_FETCH_TIMEOUT_MS = Number(
-  process.env.NEXT_PUBLIC_SUPABASE_FETCH_TIMEOUT_MS || 15_000
+  process.env.NEXT_PUBLIC_SUPABASE_FETCH_TIMEOUT_MS || 30_000
 );
 
 export function fetchWithTimeout(
@@ -43,14 +59,21 @@ export function fetchWithTimeout(
   init?: RequestInit
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
+  const timeoutMs = SUPABASE_FETCH_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => {
+    // Always pass a reason — bare abort() shows "signal is aborted without reason".
+    controller.abort(`Supabase request timed out after ${timeoutMs}ms`);
+  }, timeoutMs);
 
-  const signals = [controller.signal];
   if (init?.signal) {
     if (init.signal.aborted) {
-      controller.abort();
+      controller.abort(init.signal.reason ?? "Request was cancelled");
     } else {
-      init.signal.addEventListener("abort", () => controller.abort(), { once: true });
+      init.signal.addEventListener(
+        "abort",
+        () => controller.abort(init.signal?.reason ?? "Request was cancelled"),
+        { once: true }
+      );
     }
   }
 

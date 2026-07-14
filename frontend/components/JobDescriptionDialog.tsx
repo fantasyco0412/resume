@@ -6,6 +6,7 @@ import type { JobWorkType } from "@/lib/prompts/job-page-extract";
 import FormattedJobDescription from "@/components/FormattedJobDescription";
 import { prepareJobDescriptionForDisplay } from "@/lib/normalize-job-description";
 import { formatJobDescriptionForCopy } from "@/lib/format-job-description-for-copy";
+import { writeClipboardText } from "@/lib/clipboard";
 
 interface JobDescriptionDialogProps {
   open: boolean;
@@ -79,7 +80,7 @@ export default function JobDescriptionDialog({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(copyText);
+      await writeClipboardText(copyText);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {

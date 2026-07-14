@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAIConfigured, resolveAIRequest } from "@/lib/ai-api";
 import { callAI } from "@/lib/ai-provider";
 import type { AIMessage } from "@/lib/ai-provider";
+import { normalizeCoverLetterText } from "@/lib/cover-letter-text";
 import { AuthError, requireAuthClient } from "@/lib/supabase/server-client";
 
 export async function POST(request: NextRequest) {
@@ -40,7 +41,10 @@ STRICT FORMAT REQUIREMENTS:
    (blank line)
    the candidate's name from the resume
 
-Return ONLY the full cover letter text with the greeting and sign-off as specified. No JSON, no labels.`;
+CRITICAL OUTPUT RULES:
+- Return ONLY plain text (the letter itself).
+- Do NOT return JSON, arrays, objects, markdown fences, or quoted string lists.
+- Do NOT wrap sentences in ["...","..."].`;
 
     const userPrompt = `Resume (JSON):
 ${resumeJson}
@@ -48,9 +52,10 @@ ${resumeJson}
 Job context:
 ${jobDesc}
 
-Candidate name for sign-off: ${candidateName}`;
+Candidate name for sign-off: ${candidateName}
 
-    let coverLetter = "";
+Write the cover letter as plain text only.`;
+
     let coverLetterCostUsd: number | undefined;
 
     const messages: AIMessage[] = [
@@ -68,21 +73,16 @@ Candidate name for sign-off: ${candidateName}`;
       tryParseJson: false,
     });
 
-    coverLetter = aiResp.text || "";
+    const raw = aiResp.text || "";
     if (aiResp.costUsd != null) {
       coverLetterCostUsd = aiResp.costUsd;
     }
 
-    if (!coverLetter) {
+    if (!raw.trim()) {
       throw new Error("Cover letter response was empty");
     }
 
-    if (!coverLetter.startsWith("Dear Hiring Team")) {
-      coverLetter = "Dear Hiring Team,\n\n" + coverLetter;
-    }
-    if (!coverLetter.includes("Best Regards")) {
-      coverLetter = coverLetter + "\n\nBest Regards.\n\n" + candidateName;
-    }
+    const coverLetter = normalizeCoverLetterText(raw, candidateName);
 
     return NextResponse.json({
       coverLetter,

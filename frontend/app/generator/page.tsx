@@ -211,6 +211,8 @@ export default function GeneratorPage() {
   const [sessions, setSessions] = useState<AnalysisSession[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
+  /** Sync lock — React state is too late to stop double-clicks / parallel starts. */
+  const generateInFlightRef = useRef<Set<string>>(new Set());
   const [answerDialogSessionId, setAnswerDialogSessionId] = useState<string | null>(null);
   const [coverLetterDialogSessionId, setCoverLetterDialogSessionId] = useState<string | null>(
     null
@@ -685,6 +687,8 @@ export default function GeneratorPage() {
 
   const generateResumeForSession = useCallback(
     async (sessionId: string) => {
+      if (generateInFlightRef.current.has(sessionId)) return;
+
       const session = sessions.find((s) => s.id === sessionId);
       if (!session || session.extracting || session.generating || session.downloading) return;
 
@@ -693,6 +697,8 @@ export default function GeneratorPage() {
         return;
       }
       if (!user?.id) return;
+
+      generateInFlightRef.current.add(sessionId);
 
       patchSession(sessionId, {
         generating: true,
@@ -714,8 +720,6 @@ export default function GeneratorPage() {
         coverLetterCostUsd: undefined,
         resumeTemplate,
       });
-
-      let pdfPhase = false;
 
       try {
         const {
@@ -762,10 +766,32 @@ export default function GeneratorPage() {
         const resume = data.resume;
         const analyzeMs = Date.now() - analyzeStarted;
 
+        const record = await createResumeWithArtifacts({
+          userId: user.id,
+          jd: session.jobDescription,
+          resume,
+          aiType: data.providerUsed ?? session.aiProvider,
+          model: data.modelUsed ?? session.aiModel,
+          jobSite: session.jobsite,
+          jobLink: null,
+          jobTitle: session.jobTitle.trim() || null,
+          jobCompany: session.companyName.trim() || null,
+          jobLocation: session.jobLocation.trim() || null,
+          industry: session.industry.trim() || null,
+          securityClearance: session.securityClearance.trim() || null,
+          salary: session.salary.trim() || null,
+          postedDate: session.postedDate.trim() || null,
+          jobTypes: session.jobTypes,
+          requiresTravel: session.requiresTravel,
+          extractCostUsd: session.extractCostUsd,
+          generationCostUsd: data.generationCostUsd,
+        });
+
         patchSession(sessionId, {
           result: resume,
           generating: false,
-          downloading: true,
+          downloading: false,
+          resumeId: record.id,
           providerUsed: data.providerUsed,
           modelUsed: data.modelUsed,
           analyzeMs,
@@ -774,46 +800,7 @@ export default function GeneratorPage() {
           companyName: data.companyName?.trim() || session.companyName,
           jobDescription: data.jobDescription?.trim() || session.jobDescription,
         });
-
-        pdfPhase = true;
-        const pdfStarted = Date.now();
-
-        const [{ savedPath }, record] = await Promise.all([
-          saveGeneratedResumeToDownloads(resume, undefined, {
-            companyName: session.companyName,
-            jobRole: session.jobTitle,
-            personName: resume.name || "resume",
-            template: resumeTemplate,
-            accessToken: authSession.access_token,
-          }),
-          createResumeWithArtifacts({
-            userId: user.id,
-            jd: session.jobDescription,
-            resume,
-            aiType: data.providerUsed ?? session.aiProvider,
-            model: data.modelUsed ?? session.aiModel,
-            jobSite: session.jobsite,
-            jobLink: null,
-            jobTitle: session.jobTitle.trim() || null,
-            jobCompany: session.companyName.trim() || null,
-            jobLocation: session.jobLocation.trim() || null,
-            industry: session.industry.trim() || null,
-            securityClearance: session.securityClearance.trim() || null,
-            salary: session.salary.trim() || null,
-            postedDate: session.postedDate.trim() || null,
-            jobTypes: session.jobTypes,
-            requiresTravel: session.requiresTravel,
-            extractCostUsd: session.extractCostUsd,
-            generationCostUsd: data.generationCostUsd,
-          }),
-        ]);
-
-        patchSession(sessionId, {
-          resumeId: record.id,
-          downloading: false,
-          pdfMs: Date.now() - pdfStarted,
-        });
-        showToast("success", formatPdfSaveMessage(savedPath, true));
+        showToast("success", "Resume generated and saved to History. Use Download resume to save a PDF.");
 
         if (autoAtsAfterResume) {
           void runAutoAtsCheck(sessionId, resume, {
@@ -831,12 +818,61 @@ export default function GeneratorPage() {
         patchSession(sessionId, {
           generating: false,
           downloading: false,
-          ...(pdfPhase ? { downloadError: message } : { generateError: message }),
+          generateError: message,
         });
         showToast("error", `Failed: ${message}`);
+      } finally {
+        generateInFlightRef.current.delete(sessionId);
       }
     },
     [sessions, resumeContent, profileData, resumeTemplate, patchSession, showToast, user?.id, autoAtsAfterResume, runAutoAtsCheck]
+  );
+
+  const downloadResumeForSession = useCallback(
+    async (sessionId: string) => {
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session?.result || session.extracting || session.generating || session.downloading) {
+        return;
+      }
+      if (!user?.id) return;
+
+      patchSession(sessionId, {
+        downloading: true,
+        downloadError: null,
+      });
+
+      try {
+        const {
+          data: { session: authSession },
+        } = await supabase.auth.getSession();
+        if (!authSession) throw new Error("You must be signed in to download a resume");
+
+        const resume = session.result;
+        const template = session.resumeTemplate ?? resumeTemplate;
+        const pdfStarted = Date.now();
+        const { savedPath } = await saveGeneratedResumeToDownloads(resume, undefined, {
+          companyName: session.companyName,
+          jobRole: session.jobTitle,
+          personName: resume.name || "resume",
+          template,
+          accessToken: authSession.access_token,
+        });
+
+        patchSession(sessionId, {
+          downloading: false,
+          pdfMs: Date.now() - pdfStarted,
+        });
+        showToast("success", formatPdfSaveMessage(savedPath, Boolean(session.resumeId)));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "An error occurred";
+        patchSession(sessionId, {
+          downloading: false,
+          downloadError: message,
+        });
+        showToast("error", `Download failed: ${message}`);
+      }
+    },
+    [sessions, resumeTemplate, patchSession, showToast, user?.id]
   );
 
   const regeneratePdfFromJsonForSession = useCallback(
@@ -847,50 +883,26 @@ export default function GeneratorPage() {
 
       patchSession(sessionId, {
         result: resume,
-        downloading: true,
         downloadError: null,
         atsResult: null,
         atsError: null,
       });
 
       try {
-        const {
-          data: { session: authSession },
-        } = await supabase.auth.getSession();
-        if (!authSession) throw new Error("You must be signed in to regenerate a resume");
-
-        const pdfStarted = Date.now();
-        const template = session.resumeTemplate ?? resumeTemplate;
-
-        const [{ savedPath }] = await Promise.all([
-          saveGeneratedResumeToDownloads(resume, undefined, {
-            companyName: session.companyName,
-            jobRole: session.jobTitle,
-            personName: resume.name || "resume",
-            template,
-            accessToken: authSession.access_token,
-          }),
-          session.resumeId
-            ? updateResumeJsonArtifact(user.id, session.resumeId, resume)
-            : Promise.resolve(),
-        ]);
-
-        patchSession(sessionId, {
-          downloading: false,
-          pdfMs: Date.now() - pdfStarted,
-        });
-        showToast("success", formatPdfSaveMessage(savedPath, true));
+        if (session.resumeId) {
+          await updateResumeJsonArtifact(user.id, session.resumeId, resume);
+        }
+        showToast("success", "Resume JSON updated. Use Download resume to save a PDF.");
       } catch (err) {
         const message = err instanceof Error ? err.message : "An error occurred";
         patchSession(sessionId, {
-          downloading: false,
           downloadError: message,
         });
         showToast("error", `Failed: ${message}`);
         throw err;
       }
     },
-    [sessions, resumeTemplate, patchSession, showToast, user?.id]
+    [sessions, patchSession, showToast, user?.id]
   );
 
   const handleGenerateResume = useCallback(
@@ -1268,6 +1280,7 @@ export default function GeneratorPage() {
                   selected={selectedSessionIds.has(session.id)}
                   onSelectedChange={(selected) => toggleSessionSelected(session.id, selected)}
                   onGenerateResume={handleGenerateResume}
+                  onDownloadResume={downloadResumeForSession}
                   onGenerateAnswers={setAnswerDialogSessionId}
                   onGenerateCoverLetter={setCoverLetterDialogSessionId}
                   onAtsSaved={(sessionId, payload) => {

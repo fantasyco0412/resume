@@ -70,6 +70,7 @@ interface AnalysisResultCardProps {
   selected?: boolean;
   onSelectedChange?: (selected: boolean) => void;
   onGenerateResume: (id: string) => void;
+  onDownloadResume?: (id: string) => void;
   onGenerateAnswers: (id: string) => void;
   onGenerateCoverLetter: (id: string) => void;
   onClose: (id: string) => void;
@@ -242,6 +243,14 @@ function MailIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-full w-full">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+  );
+}
+
 function CloseIcon() {
   return (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="h-3.5 w-3.5">
@@ -308,6 +317,7 @@ export default memo(function AnalysisResultCard({
   selected = false,
   onSelectedChange,
   onGenerateResume,
+  onDownloadResume,
   onGenerateAnswers,
   onGenerateCoverLetter,
   onClose,
@@ -391,7 +401,7 @@ export default memo(function AnalysisResultCard({
           jobTitle={session.jobTitle}
           companyName={session.companyName}
           resume={session.result}
-          regenerating={Boolean(session.downloading)}
+          regenerating={false}
           onRegenerate={async (resume) => {
             if (!onRegenerateFromJson) return;
             await onRegenerateFromJson(session.id, resume);
@@ -641,7 +651,7 @@ export default memo(function AnalysisResultCard({
             className={`${actionBtnClass} bg-[#007fff] font-semibold text-white shadow-sm hover:border-[#0066cc] hover:bg-[#0066cc] hover:text-white disabled:border-slate-200 disabled:bg-slate-100 disabled:font-medium disabled:text-slate-400 disabled:shadow-none disabled:hover:border-slate-200 disabled:hover:bg-slate-100 disabled:hover:text-slate-400 dark:disabled:border-slate-700/80 dark:disabled:bg-slate-800/40 dark:disabled:text-slate-500 dark:hover:border-[#0066cc] dark:hover:bg-[#0066cc] dark:disabled:hover:border-slate-700/80 dark:disabled:hover:bg-slate-800/40 dark:disabled:hover:text-slate-500`}
           >
             <BtnIcon>
-              {session.extracting || session.generating || session.downloading ? (
+              {session.extracting || session.generating ? (
                 <RefreshIcon />
               ) : hasResume ? (
                 <RefreshIcon />
@@ -653,11 +663,20 @@ export default memo(function AnalysisResultCard({
               ? "Extracting…"
               : session.generating
                 ? "Generating…"
-                : session.downloading
-                  ? "Saving PDF…"
-                  : hasResume
-                    ? "Regenerate resume"
-                    : "Generate resume"}
+                : hasResume
+                  ? "Regenerate resume"
+                  : "Generate resume"}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDownloadResume?.(session.id)}
+            disabled={!hasResume || busy || !onDownloadResume}
+            className={actionBtnClass}
+          >
+            <BtnIcon>
+              {session.downloading ? <RefreshIcon /> : <DownloadIcon />}
+            </BtnIcon>
+            {session.downloading ? "Downloading…" : "Download resume"}
           </button>
           <button
             type="button"

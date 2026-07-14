@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Fallback: if auth init hangs (network timeout), still render the app
-    const loadingTimeout = window.setTimeout(finishLoading, 4000);
+    const loadingTimeout = window.setTimeout(finishLoading, 8_000);
 
     return () => {
       active = false;

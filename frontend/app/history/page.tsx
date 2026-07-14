@@ -37,6 +37,7 @@ import {
 } from "@/lib/job-display-styles";
 import { prepareJobDescriptionForDisplay } from "@/lib/normalize-job-description";
 import { formatJobDescriptionForCopy } from "@/lib/format-job-description-for-copy";
+import { writeClipboardText } from "@/lib/clipboard";
 import { formatAiCostBreakdown } from "@/lib/ai-usage";
 import { atsScoreTextClass, formatAtsScoreLabel } from "@/lib/check-ats-client";
 import { formatJobWorkTypeLabel } from "@/lib/prompts/job-page-extract";
@@ -748,7 +749,7 @@ export default function HistoryPage() {
     const text = jdCopyText(record);
     if (!text) return;
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       setJdCopied(true);
       setTimeout(() => setJdCopied(false), 2000);
     } catch {

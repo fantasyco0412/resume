@@ -7,6 +7,7 @@ import { apiUrl } from "@/lib/api-config";
 import { formatCostUsd } from "@/lib/ai-usage";
 import type { AnalysisResult } from "@/lib/types/resume";
 import { mergeQuestionAnswers } from "@/lib/merge-question-answers";
+import { writeClipboardText } from "@/lib/clipboard";
 
 export interface QuestionAnswer {
   question: string;
@@ -131,7 +132,7 @@ export default function AnswerQuestionsDialog({
 
   const handleCopy = async (index: number, text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch {

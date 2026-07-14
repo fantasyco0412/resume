@@ -7,6 +7,7 @@ import { apiUrl } from "@/lib/api-config";
 import { formatCostUsd } from "@/lib/ai-usage";
 import { saveCoverLetterPdfToDownloadsFolder } from "@/lib/pdf-download";
 import { uploadCoverLetterJson } from "@/lib/supabase/storage";
+import { writeClipboardText } from "@/lib/clipboard";
 import { createResumeWithArtifacts } from "@/lib/supabase/services/resumes";
 import { DEFAULT_JOBSITE, type JobsiteId } from "@/lib/jobsites";
 import { getModelProvider } from "@/lib/openrouter-shared";
@@ -160,7 +161,7 @@ export default function CoverLetterDialog({
   const handleCopy = async () => {
     if (!coverLetter.trim()) return;
     try {
-      await navigator.clipboard.writeText(coverLetter);
+      await writeClipboardText(coverLetter);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
