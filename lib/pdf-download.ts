@@ -1,5 +1,9 @@
 import { apiUrl, shouldSavePdfToServerDisk } from "@/lib/api-config";
 import {
+  savePdfBase64ToBrowserSubfolder,
+  saveTextToBrowserSubfolder,
+} from "@/lib/browser-downloads";
+import {
   buildCoverLetterDownloadPaths,
   buildJobFolderDownloadPaths,
   buildResumeDownloadPaths,
@@ -28,8 +32,33 @@ function downloadPdfViaBrowser(pdfBase64: string, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-function browserSavedPath(paths: ResumeDownloadPaths): string {
-  return `Downloads/${paths.dirName}/${paths.fileName}`;
+/** Prefer company_role/ folder under the user’s Downloads; flat file if picker unavailable. */
+async function savePdfInBrowser(
+  pdfBase64: string,
+  paths: ResumeDownloadPaths
+): Promise<string> {
+  const saved = await savePdfBase64ToBrowserSubfolder(
+    pdfBase64,
+    paths.dirName,
+    paths.fileName
+  );
+  if (saved) return saved;
+  downloadPdfViaBrowser(pdfBase64, `${paths.dirName} - ${paths.fileName}`);
+  return `${paths.dirName} - ${paths.fileName}`;
+}
+
+async function saveTextInBrowser(
+  content: string,
+  paths: ResumeDownloadPaths
+): Promise<string> {
+  const saved = await saveTextToBrowserSubfolder(
+    content,
+    paths.dirName,
+    paths.fileName
+  );
+  if (saved) return saved;
+  downloadTextFile(content, `${paths.dirName} - ${paths.fileName}`);
+  return `${paths.dirName} - ${paths.fileName}`;
 }
 
 const SAVE_PDF_API_TIMEOUT_MS = 120_000;
@@ -128,10 +157,10 @@ export async function savePdfToDownloadsFolder(
 
   const browserFileName = `${paths.dirName} - ${paths.fileName}`;
 
-  // Remote API (VPS): always download in the user's browser — never write server disk.
+  // Remote API (VPS): save under user's Downloads/<company_role>/ via folder picker.
   if (!shouldSavePdfToServerDisk() || !options.accessToken) {
-    downloadPdfViaBrowser(pdfBase64, browserFileName);
-    return { paths, savedPath: browserSavedPath(paths) };
+    const savedPath = await savePdfInBrowser(pdfBase64, paths);
+    return { paths, savedPath };
   }
 
   try {
@@ -148,8 +177,8 @@ export async function savePdfToDownloadsFolder(
     );
   } catch (error) {
     console.warn("Server save to Downloads failed, falling back to browser download:", error);
-    downloadPdfViaBrowser(pdfBase64, browserFileName);
-    return { paths, savedPath: browserSavedPath(paths) };
+    const savedPath = await savePdfInBrowser(pdfBase64, paths);
+    return { paths, savedPath };
   }
 }
 
@@ -178,8 +207,8 @@ export async function saveResumePdfToDownloadsFolder(
       options.accessToken,
       options.template
     );
-    downloadPdfViaBrowser(pdfBase64, `${paths.dirName} - ${paths.fileName}`);
-    return { paths, savedPath: browserSavedPath(paths) };
+    const savedPath = await savePdfInBrowser(pdfBase64, paths);
+    return { paths, savedPath };
   }
 
   return postSavePdf(
@@ -284,11 +313,10 @@ export async function saveTextToDownloadsFolder(
     options.jobRole,
     fileName
   );
-  const browserFileName = `${paths.dirName} - ${paths.fileName}`;
 
   if (!shouldSavePdfToServerDisk() || !options.accessToken) {
-    downloadTextFile(content, browserFileName);
-    return { paths, savedPath: browserSavedPath(paths) };
+    const savedPath = await saveTextInBrowser(content, paths);
+    return { paths, savedPath };
   }
 
   const response = await fetch(apiUrl("/api/save-text"), {
@@ -311,6 +339,6 @@ export async function saveTextToDownloadsFolder(
     return { paths: data.paths, savedPath: data.savedPath };
   }
 
-  downloadTextFile(content, browserFileName);
-  return { paths, savedPath: browserSavedPath(paths) };
+  const savedPath = await saveTextInBrowser(content, paths);
+  return { paths, savedPath };
 }
