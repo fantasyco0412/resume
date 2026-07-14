@@ -6,9 +6,26 @@ import { AuthError, requireAuthClient } from "@/lib/supabase/server-client";
 
 export const maxDuration = 300;
 
+function isServerDiskSaveEnabled(): boolean {
+  const raw = process.env.SAVE_PDF_TO_SERVER_DISK?.trim().toLowerCase();
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     await requireAuthClient(request);
+
+    if (!isServerDiskSaveEnabled()) {
+      return NextResponse.json(
+        {
+          error:
+            "Server disk save is disabled. Use /api/generate-pdf and download in the browser.",
+        },
+        { status: 403 }
+      );
+    }
 
     const { resume, template, companyName, jobRole, personName, fileName } =
       await request.json();

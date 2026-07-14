@@ -18,3 +18,19 @@ export function apiUrl(path: string): string {
   const base = getApiBaseUrl();
   return base ? `${base}${normalized}` : normalized;
 }
+
+/**
+ * True when the API is on the same machine as the browser (local dev).
+ * Remote API hosts (VPS / Railway / etc.) must not write to their own Downloads —
+ * the browser download path is used instead.
+ */
+export function shouldSavePdfToServerDisk(): boolean {
+  const base = getApiBaseUrl();
+  if (!base) return true; // same-origin / Next rewrite → local backend
+  try {
+    const host = new URL(base).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}

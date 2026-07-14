@@ -1,4 +1,4 @@
-import { apiUrl } from "@/lib/api-config";
+import { apiUrl, shouldSavePdfToServerDisk } from "@/lib/api-config";
 import {
   buildCoverLetterDownloadPaths,
   buildJobFolderDownloadPaths,
@@ -26,6 +26,10 @@ function downloadPdfViaBrowser(pdfBase64: string, fileName: string): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+function browserSavedPath(paths: ResumeDownloadPaths): string {
+  return `Downloads/${paths.dirName}/${paths.fileName}`;
 }
 
 const SAVE_PDF_API_TIMEOUT_MS = 120_000;
@@ -67,6 +71,35 @@ async function postSavePdf(
   }
 }
 
+async function generateResumePdfBase64(
+  resume: UpdatedResume | Record<string, unknown>,
+  accessToken: string,
+  template?: string
+): Promise<string> {
+  const response = await fetch(apiUrl("/api/generate-pdf"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ resume, template }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof err.error === "string" ? err.error : "Failed to generate PDF"
+    );
+  }
+
+  const { pdfBase64 } = (await response.json()) as { pdfBase64?: string };
+  const normalized = pdfBase64 ? String(pdfBase64).trim() : "";
+  if (!normalized) {
+    throw new Error("PDF generation returned empty data");
+  }
+  return normalized;
+}
+
 export function downloadTextFile(content: string, fileName: string): void {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -93,29 +126,31 @@ export async function savePdfToDownloadsFolder(
     ? buildJobFolderDownloadPaths(options.companyName, options.jobRole, options.fileName.trim())
     : buildResumeDownloadPaths(options.companyName, options.jobRole, options.personName);
 
-  if (options.accessToken) {
-    try {
-      return await postSavePdf(
-        "/api/save-pdf",
-        {
-          pdfBase64,
-          companyName: options.companyName,
-          jobRole: options.jobRole,
-          personName: options.personName,
-          fileName: options.fileName,
-        },
-        options.accessToken
-      );
-    } catch (error) {
-      console.warn("Server save to Downloads failed, falling back to browser download:", error);
-    }
+  const browserFileName = `${paths.dirName} - ${paths.fileName}`;
+
+  // Remote API (VPS): always download in the user's browser — never write server disk.
+  if (!shouldSavePdfToServerDisk() || !options.accessToken) {
+    downloadPdfViaBrowser(pdfBase64, browserFileName);
+    return { paths, savedPath: browserSavedPath(paths) };
   }
 
-  downloadPdfViaBrowser(pdfBase64, `${paths.dirName} - ${paths.fileName}`);
-  return {
-    paths,
-    savedPath: `Downloads\\${paths.dirName}\\${paths.fileName}`,
-  };
+  try {
+    return await postSavePdf(
+      "/api/save-pdf",
+      {
+        pdfBase64,
+        companyName: options.companyName,
+        jobRole: options.jobRole,
+        personName: options.personName,
+        fileName: options.fileName,
+      },
+      options.accessToken
+    );
+  } catch (error) {
+    console.warn("Server save to Downloads failed, falling back to browser download:", error);
+    downloadPdfViaBrowser(pdfBase64, browserFileName);
+    return { paths, savedPath: browserSavedPath(paths) };
+  }
 }
 
 export async function saveResumePdfToDownloadsFolder(
@@ -137,6 +172,16 @@ export async function saveResumePdfToDownloadsFolder(
     throw new Error("You must be signed in to save PDF to Downloads");
   }
 
+  if (!shouldSavePdfToServerDisk()) {
+    const pdfBase64 = await generateResumePdfBase64(
+      resume,
+      options.accessToken,
+      options.template
+    );
+    downloadPdfViaBrowser(pdfBase64, `${paths.dirName} - ${paths.fileName}`);
+    return { paths, savedPath: browserSavedPath(paths) };
+  }
+
   return postSavePdf(
     "/api/save-resume-pdf",
     {
@@ -152,7 +197,7 @@ export async function saveResumePdfToDownloadsFolder(
   );
 }
 
-/** Save a generated resume: render PDF on server, download in browser, then save to Downloads folder. */
+/** Generate PDF on server, then download to the user's machine (browser) when API is remote. */
 export async function saveGeneratedResumeToDownloads(
   resume: UpdatedResume | Record<string, unknown>,
   _pdfBase64: string | undefined,
@@ -174,48 +219,18 @@ export async function saveGeneratedResumeToDownloads(
     throw new Error("You must be signed in to download a resume");
   }
 
-  const response = await fetch(apiUrl("/api/generate-pdf"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${options.accessToken}`,
-    },
-    body: JSON.stringify({ resume, template: options.template }),
+  const normalized = await generateResumePdfBase64(
+    resume,
+    options.accessToken,
+    options.template
+  );
+
+  return savePdfToDownloadsFolder(normalized, {
+    companyName: options.companyName,
+    jobRole: options.jobRole,
+    personName: options.personName,
+    accessToken: options.accessToken,
   });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      typeof err.error === "string" ? err.error : "Failed to generate PDF"
-    );
-  }
-
-  const { pdfBase64 } = (await response.json()) as { pdfBase64?: string };
-  const normalized = pdfBase64 ? String(pdfBase64).trim() : "";
-  if (!normalized) {
-    throw new Error("PDF generation returned empty data");
-  }
-
-  try {
-    return await postSavePdf(
-      "/api/save-pdf",
-      {
-        pdfBase64: normalized,
-        companyName: options.companyName,
-        jobRole: options.jobRole,
-        personName: options.personName,
-      },
-      options.accessToken,
-      SAVE_PDF_API_TIMEOUT_MS
-    );
-  } catch (error) {
-    console.warn("Server save to Downloads failed, falling back to browser download:", error);
-    downloadPdfViaBrowser(normalized, `${paths.dirName} - ${paths.fileName}`);
-    return {
-      paths,
-      savedPath: `Downloads\\${paths.dirName}\\${paths.fileName}`,
-    };
-  }
 }
 
 export async function saveCoverLetterPdfToDownloadsFolder(
@@ -269,32 +284,33 @@ export async function saveTextToDownloadsFolder(
     options.jobRole,
     fileName
   );
+  const browserFileName = `${paths.dirName} - ${paths.fileName}`;
 
-  if (options.accessToken) {
-    const response = await fetch(apiUrl("/api/save-text"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${options.accessToken}`,
-      },
-      body: JSON.stringify({
-        content,
-        companyName: options.companyName,
-        jobRole: options.jobRole,
-        personName: options.personName ?? "resume",
-        fileName,
-      }),
-    });
-
-    if (response.ok) {
-      const data = (await response.json()) as { savedPath: string; paths: ResumeDownloadPaths };
-      return { paths: data.paths, savedPath: data.savedPath };
-    }
+  if (!shouldSavePdfToServerDisk() || !options.accessToken) {
+    downloadTextFile(content, browserFileName);
+    return { paths, savedPath: browserSavedPath(paths) };
   }
 
-  downloadTextFile(content, `${paths.dirName} - ${paths.fileName}`);
-  return {
-    paths,
-    savedPath: `Downloads\\${paths.dirName}\\${paths.fileName}`,
-  };
+  const response = await fetch(apiUrl("/api/save-text"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${options.accessToken}`,
+    },
+    body: JSON.stringify({
+      content,
+      companyName: options.companyName,
+      jobRole: options.jobRole,
+      personName: options.personName ?? "resume",
+      fileName,
+    }),
+  });
+
+  if (response.ok) {
+    const data = (await response.json()) as { savedPath: string; paths: ResumeDownloadPaths };
+    return { paths: data.paths, savedPath: data.savedPath };
+  }
+
+  downloadTextFile(content, browserFileName);
+  return { paths, savedPath: browserSavedPath(paths) };
 }
