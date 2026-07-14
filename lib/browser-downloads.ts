@@ -162,7 +162,7 @@ export async function savePdfBase64ToBrowserSubfolder(
   fileName: string
 ): Promise<string> {
   const bytes = pdfBase64ToBytes(pdfBase64);
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
 
   try {
     const direct = await tryWriteBlobToSubfolder(blob, folderName, fileName);
@@ -180,7 +180,9 @@ export async function saveTextToBrowserSubfolder(
   fileName: string
 ): Promise<string> {
   const bytes = new TextEncoder().encode(text);
-  const blob = new Blob([bytes], { type: "text/plain;charset=utf-8" });
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy as BlobPart], { type: "text/plain;charset=utf-8" });
 
   try {
     const direct = await tryWriteBlobToSubfolder(blob, folderName, fileName);
@@ -189,7 +191,7 @@ export async function saveTextToBrowserSubfolder(
     console.warn("Direct folder save failed, using ZIP:", err);
   }
 
-  return downloadFolderAsZip(folderName, fileName, bytes);
+  return downloadFolderAsZip(folderName, fileName, copy);
 }
 
 /** @deprecated Prefer savePdfBase64ToBrowserSubfolder which always returns a path. */

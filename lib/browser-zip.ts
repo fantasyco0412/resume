@@ -49,8 +49,10 @@ export function buildSingleFileZip(
 ): Blob {
   const entryName = `${folderName.replace(/\\/g, "/").replace(/\/+$/, "")}/${fileName}`;
   const nameBytes = new TextEncoder().encode(entryName);
-  const crc = crc32(fileBytes);
-  const size = fileBytes.length;
+  const data = new Uint8Array(fileBytes.byteLength);
+  data.set(fileBytes);
+  const crc = crc32(data);
+  const size = data.length;
 
   const localHeader = concat([
     u32(0x04034b50),
@@ -89,7 +91,7 @@ export function buildSingleFileZip(
     nameBytes,
   ]);
 
-  const localSize = localHeader.length + fileBytes.length;
+  const localSize = localHeader.length + data.length;
   const endRecord = concat([
     u32(0x06054b50),
     u16(0),
@@ -101,8 +103,8 @@ export function buildSingleFileZip(
     u16(0),
   ]);
 
-  const zipBytes = concat([localHeader, fileBytes, centralHeader, endRecord]);
-  return new Blob([zipBytes], { type: "application/zip" });
+  const zipBytes = concat([localHeader, data, centralHeader, endRecord]);
+  return new Blob([zipBytes as BlobPart], { type: "application/zip" });
 }
 
 export function downloadBlob(blob: Blob, fileName: string): void {
