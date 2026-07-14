@@ -1,9 +1,5 @@
 import { apiUrl, shouldSavePdfToServerDisk } from "@/lib/api-config";
 import {
-  savePdfBase64ToBrowserSubfolder,
-  saveTextToBrowserSubfolder,
-} from "@/lib/browser-downloads";
-import {
   buildCoverLetterDownloadPaths,
   buildJobFolderDownloadPaths,
   buildResumeDownloadPaths,
@@ -15,23 +11,40 @@ import type { UpdatedResume } from "@/lib/types/resume";
 export type { ResumeDownloadPaths };
 export { buildResumeDownloadPaths, formatPdfSaveMessage };
 
-/** Prefer real Downloads/<company_role>/ folder; on http://VPS use ZIP with that path inside. */
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/** Browser download as a plain PDF named like "Connor Daly.pdf" (no ZIP / no folder). */
 async function savePdfInBrowser(
   pdfBase64: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  return savePdfBase64ToBrowserSubfolder(
-    pdfBase64,
-    paths.dirName,
-    paths.fileName
-  );
+  const binary = atob(pdfBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), paths.fileName);
+  return `Downloads/${paths.fileName}`;
 }
 
 async function saveTextInBrowser(
   content: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  return saveTextToBrowserSubfolder(content, paths.dirName, paths.fileName);
+  downloadBlob(
+    new Blob([content], { type: "text/plain;charset=utf-8" }),
+    paths.fileName
+  );
+  return `Downloads/${paths.fileName}`;
 }
 
 const SAVE_PDF_API_TIMEOUT_MS = 120_000;
