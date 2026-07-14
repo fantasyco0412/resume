@@ -263,6 +263,19 @@ export function formatAIProviderError(
     return `${label} rejected the request (403 forbidden). Check your API key and model access.`;
   }
 
+  if (
+    err instanceof Error &&
+    (/402/.test(err.message) || /requires more credits|insufficient credits/i.test(err.message))
+  ) {
+    return (
+      `${label} returned 402 (not enough credits for this request). ` +
+      "OpenRouter reserves balance for max_tokens × model price before running. " +
+      "Add credits at openrouter.ai/settings/credits, check this API key’s spending limit, " +
+      "or set RESUME_GENERATION_MAX_TOKENS=2048 in backend/.env.local and restart. " +
+      "Or turn Use OpenRouter off and use your direct Anthropic/OpenAI key."
+    );
+  }
+
   if (isNetworkError(err)) {
     return (
       `Could not reach ${label} (network error). Check your connection, VPN/firewall, and API keys.` +

@@ -103,8 +103,9 @@ export function getGenerationMaxTokens(
     return isDeepSeekReasoningModel(modelId) ? 8192 : 4096;
   }
   if (provider === "openai") return 3072;
-  if (provider === "anthropic") return 4096;
-  return 4096;
+  // Lower than 4096 so OpenRouter credit *reservation* stays cheaper for Claude.
+  if (provider === "anthropic") return 3072;
+  return 3072;
 }
 
 export function isDeepSeekModel(modelId: string): boolean {
