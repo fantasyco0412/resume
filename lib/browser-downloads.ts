@@ -1,10 +1,14 @@
 /**
- * Write files under Downloads/<company_role>/ via the File System Access API
- * (Chrome / Edge). A normal <a download> cannot create folders.
+ * Save under the user's Downloads/<company_role>/ when possible.
  *
- * First successful save asks the user to pick their Downloads folder once;
- * the handle is stored in IndexedDB for later writes.
+ * Reality check:
+ * - A normal PDF download cannot create folders (browser security).
+ * - Creating a real folder needs the File System Access API → HTTPS (or localhost) + Chrome/Edge.
+ * - On plain http://IP (typical VPS today), we download a ZIP that contains
+ *   company_role/Name.pdf — extract it in Downloads to get the folder.
  */
+
+import { downloadFolderAsZip } from "@/lib/browser-zip";
 
 const IDB_NAME = "resume-app-downloads";
 const IDB_STORE = "handles";
@@ -81,12 +85,13 @@ async function ensureReadWritePermission(
   if (typeof withPerm.requestPermission === "function") {
     if ((await withPerm.requestPermission(opts)) === "granted") return true;
   }
-  // If permission APIs are missing, try using the handle directly.
   return typeof withPerm.queryPermission !== "function";
 }
 
+/** True only on secure contexts (HTTPS / localhost) with Chrome/Edge folder API. */
 export function canSaveToBrowserFolder(): boolean {
   if (typeof window === "undefined") return false;
+  if (!window.isSecureContext) return false;
   return typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function";
 }
 
@@ -112,19 +117,13 @@ async function resolveDownloadsRoot(): Promise<FileSystemDirectoryHandle | null>
     await storeDirectoryHandle(handle);
     return handle;
   } catch (err) {
-    // User cancelled or browser blocked the picker
     if (err instanceof DOMException && err.name === "AbortError") return null;
     console.warn("Directory picker failed:", err);
     return null;
   }
 }
 
-/**
- * Create Downloads/<folderName>/<fileName> when the user allows folder access.
- * Returns the display path, or null if folder save is unavailable / cancelled
- * (caller should fall back to a flat browser download).
- */
-export async function saveBlobToBrowserSubfolder(
+async function tryWriteBlobToSubfolder(
   blob: Blob,
   folderName: string,
   fileName: string
@@ -144,25 +143,60 @@ export async function saveBlobToBrowserSubfolder(
   return `Downloads/${folderName}/${fileName}`;
 }
 
-export async function saveTextToBrowserSubfolder(
-  text: string,
-  folderName: string,
-  fileName: string
-): Promise<string | null> {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  return saveBlobToBrowserSubfolder(blob, folderName, fileName);
-}
-
-export async function savePdfBase64ToBrowserSubfolder(
-  pdfBase64: string,
-  folderName: string,
-  fileName: string
-): Promise<string | null> {
+function pdfBase64ToBytes(pdfBase64: string): Uint8Array {
   const binary = atob(pdfBase64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
+  return bytes;
+}
+
+/**
+ * Save PDF into Downloads/<folderName>/<fileName> when possible;
+ * otherwise download a ZIP that extracts to that folder structure.
+ */
+export async function savePdfBase64ToBrowserSubfolder(
+  pdfBase64: string,
+  folderName: string,
+  fileName: string
+): Promise<string> {
+  const bytes = pdfBase64ToBytes(pdfBase64);
   const blob = new Blob([bytes], { type: "application/pdf" });
-  return saveBlobToBrowserSubfolder(blob, folderName, fileName);
+
+  try {
+    const direct = await tryWriteBlobToSubfolder(blob, folderName, fileName);
+    if (direct) return direct;
+  } catch (err) {
+    console.warn("Direct folder save failed, using ZIP:", err);
+  }
+
+  return downloadFolderAsZip(folderName, fileName, bytes);
+}
+
+export async function saveTextToBrowserSubfolder(
+  text: string,
+  folderName: string,
+  fileName: string
+): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const blob = new Blob([bytes], { type: "text/plain;charset=utf-8" });
+
+  try {
+    const direct = await tryWriteBlobToSubfolder(blob, folderName, fileName);
+    if (direct) return direct;
+  } catch (err) {
+    console.warn("Direct folder save failed, using ZIP:", err);
+  }
+
+  return downloadFolderAsZip(folderName, fileName, bytes);
+}
+
+/** @deprecated Prefer savePdfBase64ToBrowserSubfolder which always returns a path. */
+export async function saveBlobToBrowserSubfolder(
+  blob: Blob,
+  folderName: string,
+  fileName: string
+): Promise<string | null> {
+  return tryWriteBlobToSubfolder(blob, folderName, fileName);
 }

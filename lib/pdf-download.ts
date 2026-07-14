@@ -15,50 +15,23 @@ import type { UpdatedResume } from "@/lib/types/resume";
 export type { ResumeDownloadPaths };
 export { buildResumeDownloadPaths, formatPdfSaveMessage };
 
-function downloadPdfViaBrowser(pdfBase64: string, fileName: string): void {
-  const binary = atob(pdfBase64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-/** Prefer company_role/ folder under the user’s Downloads; flat file if picker unavailable. */
+/** Prefer real Downloads/<company_role>/ folder; on http://VPS use ZIP with that path inside. */
 async function savePdfInBrowser(
   pdfBase64: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  const saved = await savePdfBase64ToBrowserSubfolder(
+  return savePdfBase64ToBrowserSubfolder(
     pdfBase64,
     paths.dirName,
     paths.fileName
   );
-  if (saved) return saved;
-  downloadPdfViaBrowser(pdfBase64, `${paths.dirName} - ${paths.fileName}`);
-  return `${paths.dirName} - ${paths.fileName}`;
 }
 
 async function saveTextInBrowser(
   content: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  const saved = await saveTextToBrowserSubfolder(
-    content,
-    paths.dirName,
-    paths.fileName
-  );
-  if (saved) return saved;
-  downloadTextFile(content, `${paths.dirName} - ${paths.fileName}`);
-  return `${paths.dirName} - ${paths.fileName}`;
+  return saveTextToBrowserSubfolder(content, paths.dirName, paths.fileName);
 }
 
 const SAVE_PDF_API_TIMEOUT_MS = 120_000;
