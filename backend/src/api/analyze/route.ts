@@ -13,9 +13,9 @@ import {
   getTenureYears,
 } from "@/lib/resume-bullets";
 import {
-  cleanJsonText,
   diagnoseJsonParseFailure,
   formatJsonParseErrorMessage,
+  parseJsonLenient,
 } from "@/lib/analyze-json";
 import {
   DEFAULT_RESUME_TEMPLATE,
@@ -147,7 +147,8 @@ export async function POST(request: NextRequest) {
         model: selectedModel,
         ...(aiRequest.provider ? { provider: aiRequest.provider } : {}),
         messages,
-        temperature: 0.7,
+        // Lower temp improves JSON validity for DeepSeek / structured resume output
+        temperature: 0.4,
         max_tokens: generationMaxTokens,
         tryParseJson: true,
       });
@@ -204,18 +205,27 @@ export async function POST(request: NextRequest) {
       return false;
     };
 
-    // Parse the JSON response — stop immediately on failure (no repair pass)
+    // Parse resume JSON; repair common DeepSeek / LLM syntax issues before failing
     try {
-      analysisResult = JSON.parse(cleanJsonText(jsonText));
+      const parsed = parseJsonLenient(jsonText);
+      analysisResult = parsed.data;
+      if (parsed.repaired) {
+        console.warn("AI JSON required repair before use.", {
+          provider: providerUsed,
+          model: modelUsed,
+        });
+      }
     } catch (parseError) {
-      const diagnostics = diagnoseJsonParseFailure(jsonText, parseError);
+      const diagnostics = diagnoseJsonParseFailure(jsonText, parseError, {
+        repairAttempted: true,
+      });
       const errorMessage = formatJsonParseErrorMessage(
         diagnostics,
         providerUsed,
         modelUsed
       );
 
-      console.error("AI JSON parse failed — generation stopped.", {
+      console.error("AI JSON parse failed after repair — generation stopped.", {
         provider: providerUsed,
         model: modelUsed,
         diagnostics,

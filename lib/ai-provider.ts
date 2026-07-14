@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { createFetchWithTimeout, getProxySetupHint } from "@/lib/proxy-fetch";
+import { parseJsonLenient } from "@/lib/analyze-json";
 import type { DirectAIProvider } from "@/lib/direct-ai-shared";
 import {
   resolveDefaultOpenRouterModel,
@@ -106,28 +107,11 @@ function enrichAiResponse<T extends Omit<AIResponse, "usage" | "costUsd" | "cost
   };
 }
 
-function stripCodeFences(text: string) {
-  let t = String(text || "").trim();
-  if (t.startsWith("```json")) t = t.replace(/^```json\n?/, "");
-  if (t.startsWith("```")) t = t.replace(/^```\n?/, "");
-  if (t.endsWith("```")) t = t.replace(/```$/, "");
-  return t.trim();
-}
-
 function extractFirstJson(text: string): any | null {
-  const cleaned = stripCodeFences(text);
   try {
-    return JSON.parse(cleaned);
+    return parseJsonLenient(text).data;
   } catch {
-    const objMatch = cleaned.match(/\{[\s\S]*\}/);
-    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-    const candidate = objMatch?.[0] || arrMatch?.[0];
-    if (!candidate) return null;
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
