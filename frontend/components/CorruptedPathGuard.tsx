@@ -1,22 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 /** Paths like /209.145.53.40:7843/209.145.53.40:7843/... from bad relative redirects. */
 export function isCorruptedHostLoopPath(pathname: string): boolean {
   return /^\/(\d{1,3}\.){3}\d{1,3}:\d+(?:\/|$)/.test(pathname);
 }
 
-/** Reset corrupted client-side navigations back to the app root. */
+/**
+ * Clean OpenWeb-mangled URLs without a full navigation.
+ * history.replaceState avoids Astrill OpenWeb rewriting Location headers again.
+ */
 export default function CorruptedPathGuard() {
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    if (isCorruptedHostLoopPath(pathname)) {
-      window.location.replace(`${window.location.origin}/`);
-    }
-  }, [pathname]);
+    if (!isCorruptedHostLoopPath(pathname)) return;
+    window.history.replaceState(null, "", "/");
+    router.replace("/");
+  }, [pathname, router]);
 
   return null;
 }

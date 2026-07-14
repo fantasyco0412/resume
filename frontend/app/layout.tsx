@@ -19,7 +19,8 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var p=location.pathname;if(/^\\/(\\d{1,3}\\.){3}\\d{1,3}:\\d+(\\/|$)/.test(p)){location.replace(location.origin+"/");}})();`,
+            // OpenWeb rewrites Location redirects on bare IP:port; replaceState avoids another HTTP hop.
+            __html: `(function(){var p=location.pathname;if(/^\\/(\\d{1,3}\\.){3}\\d{1,3}:\\d+(\\/|$)/.test(p)){try{history.replaceState(null,"","/")}catch(e){}}})();`,
           }}
         />
       </head>
