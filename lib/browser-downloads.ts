@@ -11,6 +11,24 @@ const IDB_STORE = "handles";
 const IDB_KEY = "downloadsRoot";
 const PICKER_ID = "resume-app-downloads-v1";
 
+/** Chromium File System Access permission helpers (not in all TS DOM lib versions). */
+type DirectoryHandleWithPermission = FileSystemDirectoryHandle & {
+  queryPermission?: (descriptor?: {
+    mode?: "read" | "readwrite";
+  }) => Promise<PermissionState>;
+  requestPermission?: (descriptor?: {
+    mode?: "read" | "readwrite";
+  }) => Promise<PermissionState>;
+};
+
+type DirectoryPickerWindow = Window & {
+  showDirectoryPicker?: (options?: {
+    id?: string;
+    mode?: "read" | "readwrite";
+    startIn?: string;
+  }) => Promise<FileSystemDirectoryHandle>;
+};
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);
@@ -56,16 +74,20 @@ async function ensureReadWritePermission(
   handle: FileSystemDirectoryHandle
 ): Promise<boolean> {
   const opts = { mode: "readwrite" as const };
-  if ((await handle.queryPermission(opts)) === "granted") return true;
-  if ((await handle.requestPermission(opts)) === "granted") return true;
-  return false;
+  const withPerm = handle as DirectoryHandleWithPermission;
+  if (typeof withPerm.queryPermission === "function") {
+    if ((await withPerm.queryPermission(opts)) === "granted") return true;
+  }
+  if (typeof withPerm.requestPermission === "function") {
+    if ((await withPerm.requestPermission(opts)) === "granted") return true;
+  }
+  // If permission APIs are missing, try using the handle directly.
+  return typeof withPerm.queryPermission !== "function";
 }
 
 export function canSaveToBrowserFolder(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.showDirectoryPicker === "function"
-  );
+  if (typeof window === "undefined") return false;
+  return typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function";
 }
 
 async function resolveDownloadsRoot(): Promise<FileSystemDirectoryHandle | null> {
@@ -81,7 +103,8 @@ async function resolveDownloadsRoot(): Promise<FileSystemDirectoryHandle | null>
   }
 
   try {
-    const handle = await window.showDirectoryPicker({
+    const picker = (window as DirectoryPickerWindow).showDirectoryPicker!;
+    const handle = await picker({
       id: PICKER_ID,
       mode: "readwrite",
       startIn: "downloads",
