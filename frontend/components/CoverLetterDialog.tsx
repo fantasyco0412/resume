@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { apiUrl } from "@/lib/api-config";
 import { formatCostUsd } from "@/lib/ai-usage";
-import { saveCoverLetterPdfToDownloadsFolder } from "@/lib/pdf-download";
+import { saveCoverLetterPdfToDownloadsFolder, SaveCancelledError } from "@/lib/pdf-download";
 import { uploadCoverLetterJson } from "@/lib/supabase/storage";
 import { writeClipboardText } from "@/lib/clipboard";
 import { createResumeWithArtifacts } from "@/lib/supabase/services/resumes";
@@ -207,8 +207,9 @@ export default function CoverLetterDialog({
         accessToken: session?.access_token,
       });
 
-      onSuccess?.(`Cover letter saved to cloud and downloaded to ${savedPath}`);
+      onSuccess?.(`Cover letter saved to cloud and saved as ${savedPath}`);
     } catch (err) {
+      if (err instanceof SaveCancelledError) return;
       onError(err instanceof Error ? err.message : "Failed to save cover letter");
     } finally {
       setSaving(false);

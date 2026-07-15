@@ -24,7 +24,7 @@ import {
 } from "@/lib/supabase/services/interviews";
 import { JOBSITES } from "@/lib/jobsites";
 import { supabase } from "@/lib/supabase";
-import { saveResumePdfToDownloadsFolder, saveTextToDownloadsFolder } from "@/lib/pdf-download";
+import { saveResumePdfToDownloadsFolder, saveTextToDownloadsFolder, SaveCancelledError } from "@/lib/pdf-download";
 import type { UpdatedResume } from "@/lib/types/resume";
 import { ToastContainer, useToast } from "@/components/Toast";
 import FormattedJobDescription from "@/components/FormattedJobDescription";
@@ -772,6 +772,7 @@ export default function HistoryPage() {
         accessToken: session?.access_token,
       });
     } catch (error) {
+      if (error instanceof SaveCancelledError) return;
       console.error("Failed to download job description:", error);
       showToast(
         "error",
@@ -796,6 +797,7 @@ export default function HistoryPage() {
         accessToken: session?.access_token,
       });
     } catch (error) {
+      if (error instanceof SaveCancelledError) return;
       console.error("Failed to download resume PDF:", error);
       showToast("error", error instanceof Error ? error.message : "Failed to download PDF");
     } finally {

@@ -108,7 +108,7 @@ export function buildCoverLetterDownloadFilePath(
 
 export function formatPdfSaveMessage(savedPath: string, savedToHistory: boolean): string {
   if (savedToHistory) {
-    return `Saved to History and downloaded to ${savedPath}`;
+    return `Saved to History and saved PDF as ${savedPath}`;
   }
-  return `PDF saved to ${savedPath}`;
+  return `PDF saved as ${savedPath}`;
 }

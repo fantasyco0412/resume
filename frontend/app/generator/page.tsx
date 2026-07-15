@@ -52,7 +52,7 @@ import {
   resolveResumeTemplate,
   type ResumeTemplateId,
 } from "@/lib/resume-templates";
-import { formatPdfSaveMessage, saveGeneratedResumeToDownloads } from "@/lib/pdf-download";
+import { formatPdfSaveMessage, saveGeneratedResumeToDownloads, SaveCancelledError } from "@/lib/pdf-download";
 import type { ExtractedJobInfo } from "@/lib/extract-job-page";
 import {
   DEFAULT_DIRECT_MODELS,
@@ -864,6 +864,10 @@ export default function GeneratorPage() {
         });
         showToast("success", formatPdfSaveMessage(savedPath, Boolean(session.resumeId)));
       } catch (err) {
+        if (err instanceof SaveCancelledError) {
+          patchSession(sessionId, { downloading: false });
+          return;
+        }
         const message = err instanceof Error ? err.message : "An error occurred";
         patchSession(sessionId, {
           downloading: false,

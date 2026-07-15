@@ -1,5 +1,10 @@
 import { apiUrl, shouldSavePdfToServerDisk } from "@/lib/api-config";
 import {
+  SaveCancelledError,
+  saveBlobWithDialog,
+  savePdfBase64WithDialog,
+} from "@/lib/file-save";
+import {
   buildCoverLetterDownloadPaths,
   buildJobFolderDownloadPaths,
   buildResumeDownloadPaths,
@@ -10,41 +15,27 @@ import type { UpdatedResume } from "@/lib/types/resume";
 
 export type { ResumeDownloadPaths };
 export { buildResumeDownloadPaths, formatPdfSaveMessage };
+export { SaveCancelledError };
 
-function downloadBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-/** Browser download as a plain PDF named like "Connor Daly.pdf" (no ZIP / no folder). */
+/** Open Save As dialog (or fall back to browser download). */
 async function savePdfInBrowser(
   pdfBase64: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  const binary = atob(pdfBase64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  downloadBlob(new Blob([bytes as BlobPart], { type: "application/pdf" }), paths.fileName);
-  return `Downloads/${paths.fileName}`;
+  const savedName = await savePdfBase64WithDialog(pdfBase64, paths.fileName);
+  return savedName;
 }
 
 async function saveTextInBrowser(
   content: string,
   paths: ResumeDownloadPaths
 ): Promise<string> {
-  downloadBlob(
-    new Blob([content], { type: "text/plain;charset=utf-8" }),
-    paths.fileName
-  );
-  return `Downloads/${paths.fileName}`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  return saveBlobWithDialog(blob, paths.fileName, {
+    description: "Text file",
+    mimeType: "text/plain",
+    extension: ".txt",
+  });
 }
 
 const SAVE_PDF_API_TIMEOUT_MS = 120_000;
@@ -116,15 +107,14 @@ async function generateResumePdfBase64(
 }
 
 export function downloadTextFile(content: string, fileName: string): void {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  void saveBlobWithDialog(new Blob([content], { type: "text/plain;charset=utf-8" }), fileName, {
+    description: "Text file",
+    mimeType: "text/plain",
+    extension: ".txt",
+  }).catch((err) => {
+    if (err instanceof SaveCancelledError) return;
+    console.warn("Text download failed:", err);
+  });
 }
 
 export async function savePdfToDownloadsFolder(
@@ -141,9 +131,7 @@ export async function savePdfToDownloadsFolder(
     ? buildJobFolderDownloadPaths(options.companyName, options.jobRole, options.fileName.trim())
     : buildResumeDownloadPaths(options.companyName, options.jobRole, options.personName);
 
-  const browserFileName = `${paths.dirName} - ${paths.fileName}`;
-
-  // Remote API (VPS): save under user's Downloads/<company_role>/ via folder picker.
+  // Remote API / browser: open Save As dialog (or fall back to download).
   if (!shouldSavePdfToServerDisk() || !options.accessToken) {
     const savedPath = await savePdfInBrowser(pdfBase64, paths);
     return { paths, savedPath };

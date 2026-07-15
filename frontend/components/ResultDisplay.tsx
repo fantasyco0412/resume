@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { uploadCoverLetterJson } from "@/lib/supabase/storage";
 import { createResumeWithArtifacts } from "@/lib/supabase/services/resumes";
 import { DEFAULT_JOBSITE, type JobsiteId } from "@/lib/jobsites";
-import { formatPdfSaveMessage, saveCoverLetterPdfToDownloadsFolder, saveGeneratedResumeToDownloads } from "@/lib/pdf-download";
+import { formatPdfSaveMessage, saveCoverLetterPdfToDownloadsFolder, saveGeneratedResumeToDownloads, SaveCancelledError } from "@/lib/pdf-download";
 import { writeClipboardText } from "@/lib/clipboard";
 import { formatSupabaseConnectionError, isSupabaseNetworkError } from "@/lib/supabase/network";
 import { formatProviderLabel, getModelProvider } from "@/lib/openrouter-shared";
@@ -120,6 +120,7 @@ export default function ResultDisplay({
 
       showToast("success", formatPdfSaveMessage(savedPath, newlySaved));
     } catch (error) {
+      if (error instanceof SaveCancelledError) return;
       console.error("Failed to save resume or PDF:", error);
 
       const message = isSupabaseNetworkError(error)
@@ -216,8 +217,9 @@ export default function ResultDisplay({
         accessToken: session?.access_token,
       });
 
-      showToast("success", `Cover letter saved to cloud and downloaded to ${savedPath}`);
+      showToast("success", `Cover letter saved to cloud and saved as ${savedPath}`);
     } catch (err) {
+      if (err instanceof SaveCancelledError) return;
       showToast("error", `Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setCoverLetterSaving(false);
