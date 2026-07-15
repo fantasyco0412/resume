@@ -165,6 +165,8 @@ export async function saveResumePdfToDownloadsFolder(
     template?: string;
     fileName?: string;
     accessToken?: string | null;
+    /** Always open Save As dialog (History / user-driven downloads). */
+    saveViaDialog?: boolean;
   }
 ): Promise<{ paths: ResumeDownloadPaths; savedPath: string }> {
   const paths = options.fileName?.trim()
@@ -175,7 +177,10 @@ export async function saveResumePdfToDownloadsFolder(
     throw new Error("You must be signed in to save PDF to Downloads");
   }
 
-  if (!shouldSavePdfToServerDisk()) {
+  const useDialog =
+    options.saveViaDialog === true || !shouldSavePdfToServerDisk();
+
+  if (useDialog) {
     const pdfBase64 = await generateResumePdfBase64(
       resume,
       options.accessToken,
@@ -279,6 +284,8 @@ export async function saveTextToDownloadsFolder(
     personName?: string;
     fileName?: string;
     accessToken?: string | null;
+    /** Always open Save As dialog (History / user-driven downloads). */
+    saveViaDialog?: boolean;
   }
 ): Promise<{ paths: ResumeDownloadPaths; savedPath: string }> {
   const fileName = options.fileName?.trim() || "Cover Letter.txt";
@@ -288,7 +295,12 @@ export async function saveTextToDownloadsFolder(
     fileName
   );
 
-  if (!shouldSavePdfToServerDisk() || !options.accessToken) {
+  const useDialog =
+    options.saveViaDialog === true ||
+    !shouldSavePdfToServerDisk() ||
+    !options.accessToken;
+
+  if (useDialog) {
     const savedPath = await saveTextInBrowser(content, paths);
     return { paths, savedPath };
   }
