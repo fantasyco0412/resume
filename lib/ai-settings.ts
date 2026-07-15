@@ -8,8 +8,8 @@ export interface AiSettings {
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
-  use_openrouter: true,
-  auto_ats_after_resume: false,
+  use_openrouter: false,
+  auto_ats_after_resume: true,
 };
 
 export function parseAiSettings(

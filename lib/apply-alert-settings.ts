@@ -9,9 +9,9 @@ export interface ApplyAlertSettings {
 }
 
 export const DEFAULT_APPLY_ALERT_SETTINGS: ApplyAlertSettings = {
-  duplicate_apply_alert_enabled: false,
+  duplicate_apply_alert_enabled: true,
   duplicate_apply_months: DEFAULT_DUPLICATE_APPLY_MONTHS,
-  hybrid_onsite_alert_enabled: false,
+  hybrid_onsite_alert_enabled: true,
 };
 
 export function parseApplyAlertSettings(
@@ -20,12 +20,18 @@ export function parseApplyAlertSettings(
   const raw = settings ?? {};
   const months = Number(raw.duplicate_apply_months);
   return {
-    duplicate_apply_alert_enabled: Boolean(raw.duplicate_apply_alert_enabled),
+    duplicate_apply_alert_enabled:
+      typeof raw.duplicate_apply_alert_enabled === "boolean"
+        ? raw.duplicate_apply_alert_enabled
+        : DEFAULT_APPLY_ALERT_SETTINGS.duplicate_apply_alert_enabled,
     duplicate_apply_months:
       Number.isFinite(months) && months >= 1 && months <= 24
         ? Math.round(months)
         : DEFAULT_DUPLICATE_APPLY_MONTHS,
-    hybrid_onsite_alert_enabled: Boolean(raw.hybrid_onsite_alert_enabled),
+    hybrid_onsite_alert_enabled:
+      typeof raw.hybrid_onsite_alert_enabled === "boolean"
+        ? raw.hybrid_onsite_alert_enabled
+        : DEFAULT_APPLY_ALERT_SETTINGS.hybrid_onsite_alert_enabled,
   };
 }
 
